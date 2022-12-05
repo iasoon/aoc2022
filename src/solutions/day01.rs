@@ -4,7 +4,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-pub fn solve(input_path: &str) {
+fn solve(input_path: &str, n_max: usize) {
     let file = File::open(input_path).expect("could not open file");
     let reader = BufReader::new(file);
     let mut elves = Vec::new();
@@ -22,7 +22,15 @@ pub fn solve(input_path: &str) {
     }
 
     elves.sort_by_key(|&e| Reverse(e));
-    let total_calories: usize = elves.iter().take(3).sum();
+    let total_calories: usize = elves.iter().take(n_max).sum();
 
     println!("{}", total_calories);
+}
+
+pub fn part1(input_path: &str) {
+    solve(input_path, 1)
+}
+
+pub fn part2(input_path: &str) {
+    solve(input_path, 3)
 }
