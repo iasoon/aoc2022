@@ -9,6 +9,8 @@ fn main() {
     match (day_num, part) {
         (1, 1) => solutions::day01::part1(input_path),
         (1, 2) => solutions::day01::part2(input_path),
+        (2, 1) => solutions::day02::part1(input_path),
+        (2, 2) => solutions::day02::part2(input_path),
         _ => panic!("unknown day {}", day_num),
     };
 }
