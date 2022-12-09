@@ -13,6 +13,8 @@ fn main() {
         (2, 2) => solutions::day02::part2(input_path),
         (3, 1) => solutions::day03::part1(input_path),
         (3, 2) => solutions::day03::part2(input_path),
+        (4, 1) => solutions::day04::part1(input_path),
+        (4, 2) => solutions::day04::part2(input_path),
         _ => panic!("unknown day {}", day_num),
     };
 }
