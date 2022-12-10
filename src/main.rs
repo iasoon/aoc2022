@@ -1,4 +1,5 @@
 mod solutions;
+mod utils;
 
 fn main() {
     let argv: Vec<String> = std::env::args().collect();
