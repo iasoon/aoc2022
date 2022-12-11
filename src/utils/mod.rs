@@ -8,6 +8,18 @@ impl<'a> Reader<'a> {
         Reader { bytes, pos: 0 }
     }
 
+    pub fn read_usize(&mut self) -> usize {
+        let mut value: usize = 0;
+        while self.peek() >= b'0' && self.peek() <= b'9' {
+            value = 10 * value + (self.bytes[self.pos] & 0x0f) as usize;
+            self.pos += 1;
+        }
+
+        value
+    }
+
+    // this function is slightly faster than the above, because it only does
+    // one check per iteration instead of two.
     pub fn read_delimited_usize(&mut self, delimiter: u8) -> usize {
         let mut value: usize = 0;
         while self.bytes[self.pos] != delimiter {
@@ -29,7 +41,28 @@ impl<'a> Reader<'a> {
     }
 
     pub fn skip_lit(&mut self, lit: &[u8]) {
-        debug_assert_eq!(lit, &self.bytes[self.pos..self.pos + lit.len()]);
+        #[cfg(debug_assertions)]
+        {
+            let read_bytes = &self.bytes[self.pos..self.pos + lit.len()];
+            if read_bytes != lit {
+                let lit_str = std::str::from_utf8(lit).unwrap();
+                let found_str = std::str::from_utf8(read_bytes).unwrap();
+                panic!("expected {:?} but found {:?}", lit_str, found_str);
+            }
+        }
         self.skip(lit.len());
+    }
+
+    pub fn peek(&self) -> u8 {
+        self.bytes[self.pos]
+    }
+
+    pub fn skip_while<P>(&mut self, mut predicate: P)
+    where
+        P: FnMut(u8) -> bool,
+    {
+        while predicate(self.peek()) {
+            self.pos += 1;
+        }
     }
 }
