@@ -65,4 +65,13 @@ impl<'a> Reader<'a> {
             self.pos += 1;
         }
     }
+
+    pub fn take_while<P>(&mut self, predicate: P) -> &'a [u8]
+    where
+        P: FnMut(u8) -> bool,
+    {
+        let start = self.pos;
+        self.skip_while(predicate);
+        &self.bytes[start..self.pos]
+    }
 }
