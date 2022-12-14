@@ -1,4 +1,5 @@
-use std::ops::{Index, IndexMut};
+use crate::utils::{GridCoords, VecGrid};
+use std::ops::Index;
 
 pub fn part1(input_path: &str) {
     let bytes = std::fs::read(input_path).unwrap();
@@ -22,7 +23,7 @@ pub fn part1(input_path: &str) {
         (grid.width - 1 - d, w)
     });
 
-    let num_visible: usize = is_visible.inner.iter().filter(|&&v| v).count();
+    let num_visible: usize = is_visible.iter().filter(|&&v| v).count();
 
     println!("{}", num_visible);
 }
@@ -106,39 +107,6 @@ fn tree_scenic_score(grid: &AsciiGrid, x: usize, y: usize) -> usize {
     score *= i - y;
 
     score
-}
-
-type GridCoords = (usize, usize);
-
-struct VecGrid<T> {
-    inner: Vec<T>,
-    width: usize,
-}
-
-impl<T> Index<GridCoords> for VecGrid<T> {
-    type Output = T;
-
-    fn index(&self, (x, y): GridCoords) -> &Self::Output {
-        &self.inner[x + self.width * y]
-    }
-}
-
-impl<T> IndexMut<GridCoords> for VecGrid<T> {
-    fn index_mut(&mut self, (x, y): GridCoords) -> &mut Self::Output {
-        &mut self.inner[x + self.width * y]
-    }
-}
-
-impl<T> VecGrid<T> {
-    fn full(width: usize, height: usize, value: T) -> Self
-    where
-        T: Clone,
-    {
-        VecGrid {
-            inner: vec![value; width * height],
-            width,
-        }
-    }
 }
 
 struct AsciiGrid {
