@@ -25,11 +25,7 @@ pub fn part1(input_path: &str) {
     draw_rock_formations(&mut grid, (xmin, ymin), point_buf.into_iter());
 
     let sand_source = coords_relative_to((xmin, ymin), SAND_SOURCE);
-    let mut count = 0;
-    while let Some(pos) = resting_position(&grid, sand_source) {
-        grid[pos] = true;
-        count += 1;
-    }
+    let count = find_abyss(&mut grid, sand_source);
     println!("{}", count);
 }
 
@@ -106,42 +102,67 @@ pub fn part2(input_path: &str) {
     }
 
     let sand_source = coords_relative_to((xmin, ymin), SAND_SOURCE);
-    let mut count = 0;
-    while !grid[sand_source] {
-        let pos = resting_position(&grid, sand_source).unwrap();
-        grid[pos] = true;
-        count += 1;
-    }
+    let count = fill_grid(&mut grid, sand_source);
     println!("{}", count);
 }
 
-fn resting_position(grid: &VecGrid<bool>, start: GridCoords) -> Option<GridCoords> {
-    let (mut x, mut y) = start;
+fn find_abyss(grid: &mut VecGrid<bool>, start: GridCoords) -> usize {
+    let mut path = Vec::with_capacity(grid.height());
+    path.push(start);
+    let mut count = 0;
+    while fall(grid, &mut path, true) {
+        let resting_position = path.pop().unwrap();
+        grid[resting_position] = true;
+        count += 1;
+    }
+    count
+}
+
+fn fill_grid(grid: &mut VecGrid<bool>, source: GridCoords) -> usize {
+    let mut path = Vec::with_capacity(grid.height());
+    path.push(source);
+    let mut count = 0;
+    while !path.is_empty() {
+        fall(grid, &mut path, false);
+        let resting_position = path.pop().unwrap();
+        grid[resting_position] = true;
+        count += 1;
+    }
+    count
+}
+
+// returns true if a resting position was found,
+// false if this path leads to abyss
+fn fall(grid: &VecGrid<bool>, path: &mut Vec<GridCoords>, check_abyss: bool) -> bool {
+    let (mut x, mut y) = path.last().unwrap();
     loop {
         // try to go down
         if y + 1 >= grid.height() {
             // abyss
-            return None;
-        } else if !grid[(x, y + 1)] {
+            return false;
+        } else if check_abyss && !grid[(x, y + 1)] {
             // move down
             y += 1;
-        } else if x == 0 {
+            path.push((x, y));
+        } else if check_abyss && x == 0 {
             //abyss
-            return None;
+            return false;
         } else if !grid[(x - 1, y + 1)] {
             // move diagonal left
             x -= 1;
             y += 1;
-        } else if x >= grid.width() - 1 {
+            path.push((x, y));
+        } else if check_abyss && x >= grid.width() - 1 {
             // abyss
-            return None;
+            return false;
         } else if !grid[(x + 1, y + 1)] {
             // move diagonal right
             x += 1;
             y += 1;
+            path.push((x, y));
         } else {
             // found resting resting position
-            return Some((x, y));
+            return true;
         }
     }
 }
