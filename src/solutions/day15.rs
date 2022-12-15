@@ -1,46 +1,60 @@
-use std::{
-    cmp::{max, min},
-    collections::HashSet,
-};
+use std::cmp::{max, min};
 
 use crate::utils::Reader;
 
 pub fn part1(input_path: &str) {
-    let bytes = std::fs::read(input_path).unwrap();
-    let mut reader = Reader::from_bytes(&bytes);
-    let ypos = 2000000;
-    let mut covered = HashSet::new();
-    let mut readings = Vec::new();
-    while reader.has_next() {
-        let reading = read_sensor_reading(&mut reader);
-        readings.push(reading);
-    }
+    let readings = parse_sensor_readings(input_path);
 
+    const LINE_Y: isize = 2000000;
+
+    let mut ranges = Vec::new();
     for reading in readings.iter() {
+        let range = mdist(reading.sensor_pos, reading.beacon_pos);
         let (sx, sy) = reading.sensor_pos;
-        let (bx, by) = reading.beacon_pos;
 
-        let dx = (sx - bx).abs();
-        let dy = (sy - by).abs();
-        let dist_to_closest = dx + dy;
-
-        let dist_to_line = (sy - ypos).abs();
-        if dist_to_line <= dist_to_closest {
-            let dist_on_line = dist_to_closest - dist_to_line;
-            let xmin = sx - dist_on_line;
-            let xmax = sx + dist_on_line;
-            for i in xmin..=xmax {
-                covered.insert(i);
-            }
+        let dist_to_line = (LINE_Y - sy).abs();
+        let radius_on_line = range - dist_to_line;
+        if radius_on_line >= 0 {
+            ranges.push((sx - radius_on_line, sx + radius_on_line));
         }
     }
 
-    for reading in readings.iter() {
-        if reading.beacon_pos.1 == ypos {
-            covered.remove(&reading.beacon_pos.0);
+    ranges.sort_by_key(|(xmin, _)| *xmin);
+    merge_overlapping_ranges(&mut ranges);
+    // merge overlapping ranges
+
+    let mut beacons: Vec<Coords> = readings.into_iter().map(|r| r.beacon_pos).collect();
+    beacons.sort();
+    beacons.dedup();
+
+    let total_length: isize = ranges.iter().map(|(xmin, xmax)| xmax - xmin + 1).sum();
+    let num_beacons_in_ranges: isize = beacons
+        .iter()
+        .filter(|(x, y)| {
+            *y == LINE_Y && ranges.iter().any(|(xmin, xmax)| *xmin <= *x && *x <= *xmax)
+        })
+        .count() as isize;
+
+    let answer = total_length - num_beacons_in_ranges; // - num_beacons;
+    println!("{}", answer);
+}
+
+/// assumes ranges are sorted by start position
+fn merge_overlapping_ranges(ranges: &mut Vec<(isize, isize)>) {
+    let mut back = 0;
+    let mut front = 1;
+    while front < ranges.len() {
+        if ranges[front].0 <= ranges[back].1 {
+            // todo: fix stuff
+            ranges[back].1 = max(ranges[front].1, ranges[back].1);
+        } else {
+            // advance
+            back += 1;
+            ranges.swap(front, back);
         }
+        front += 1;
     }
-    println!("{}", covered.len());
+    ranges.truncate(back + 1);
 }
 
 pub fn part2(input_path: &str) {
@@ -92,7 +106,6 @@ pub fn part2(input_path: &str) {
         }
     }
 
-    println!("{:#?}", candidate_points);
     for p in candidate_points {
         if sensors.iter().all(|s| !s.covers(p)) {
             let (x, y) = p;
