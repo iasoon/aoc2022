@@ -18,6 +18,26 @@ impl<'a> Reader<'a> {
         value
     }
 
+    pub fn read_isize(&mut self) -> isize {
+        let mut value: isize = 0;
+        let sign = if self.peek() == b'-' {
+            self.pos += 1;
+            -1
+        } else {
+            1
+        };
+
+        loop {
+            match self.peek() {
+                b @ b'0'..=b'9' => {
+                    value = 10 * value + (b & 0x0f) as isize;
+                    self.pos += 1;
+                }
+                _ => return sign * value,
+            }
+        }
+    }
+
     // this function is slightly faster than the above, because it only does
     // one check per iteration instead of two.
     pub fn read_delimited_usize(&mut self, delimiter: u8) -> usize {
