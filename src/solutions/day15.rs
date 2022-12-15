@@ -72,7 +72,11 @@ pub fn part2(input_path: &str) {
         edges.extend(sensor_edges(sensor));
     }
 
-    // compute alignments
+    // Find line segments that both have an 'upper' and a 'lower' alignment
+    // (align = -1 and +1). This means that the line segment
+    // separates two areas covered by a sensor; it is a "corridor" in between
+    // two covered areas. Since the solution is unique, it must lie on the
+    // intersection of two such corridors.
     let mut both_aligned = Vec::new();
     for (i, s1) in edges.iter().enumerate() {
         for s2 in edges[i + 1..].iter() {
@@ -92,10 +96,11 @@ pub fn part2(input_path: &str) {
         }
     }
 
+    // Find corridors that intersect
     let mut candidate_points = Vec::new();
     for (i, s1) in both_aligned.iter().enumerate() {
         for s2 in both_aligned[i + 1..].iter() {
-            if s1.slope == -s2.slope && ranges_overlap(s1.xmin, s1.xmax, s2.xmin, s2.xmax) {
+            if s1.slope == -s2.slope {
                 let x = (s2.intercept - s1.intercept) / (s1.slope - s2.slope);
 
                 if s1.xmin <= x && x <= s1.xmax && s2.xmin <= x && x <= s2.xmax {
@@ -106,13 +111,15 @@ pub fn part2(input_path: &str) {
         }
     }
 
-    for p in candidate_points {
-        if sensors.iter().all(|s| !s.covers(p)) {
-            let (x, y) = p;
-            let tuning_frequency = 4000000 * x + y;
-            println!("({}, {}) -> {}", x, y, tuning_frequency);
-        }
-    }
+    let pts: Vec<Coords> = candidate_points
+        .into_iter()
+        .filter(|p| sensors.iter().all(|s| !s.covers(*p)))
+        .collect();
+    // solution should be unique
+    assert!(pts.len() == 1);
+    let (x, y) = pts[0];
+    let tuning_frequency = 4000000 * x + y;
+    println!("{}", tuning_frequency);
 }
 
 fn ranges_overlap(start1: isize, end1: isize, start2: isize, end2: isize) -> bool {
