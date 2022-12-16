@@ -20,86 +20,168 @@ pub fn part1(input_path: &str) {
         fill_valve_distances(&mut dist_matrix, &valve_map, name);
     }
 
-    // for i in 0..dist_matrix.width() {
-    //     println!("VALVE {}, flow rate={}", i, flow_rates[i]);
-    //     for j in 0..dist_matrix.height() {
-    //         println!("dist to {} = {}", j, dist_matrix[(i, j)]);
-    //     }
-    //     println!();
-    // }
     let num_valves = valve_map.len();
     let &(start_valve_num, _) = &valve_map[b"AA".as_ref()];
     let mut state = State {
-        pos: start_valve_num,
-        minutes_remaining: 30,
+        start_pos: start_valve_num,
+        current_pos: start_valve_num,
+
+        num_actors: 1,
+        current_actor: 0,
+
+        time_available: 30,
+        current_time: 0,
+
+        step_log: Vec::new(),
+
         total_released: 0,
-        release_rate: 0,
         valve_states: vec![false; valve_map.len()],
 
         dist_matrix: &dist_matrix,
         flow_rates: &flow_rates,
-
-        history: Vec::new(),
     };
 
     state.descend();
-    let mut best = state.projected_release();
+    let mut best = state.total_released;
 
     // descend
     while state.next_state() {
-        // println!("hist {:?}, pos {}", state.history, state.pos);
-        // println!("remaining {}", state.minutes_remaining);
-        // println!("release: {}", state.projected_release());
-        best = max(best, state.projected_release());
-        state.next_state();
+        best = max(best, state.total_released);
     }
-    println!("best: {}", best);
+    println!("{}", best);
+}
+
+pub fn part2(input_path: &str) {
+    let bytes = std::fs::read(input_path).unwrap();
+    let mut reader = Reader::from_bytes(&bytes);
+    let mut valve_map = HashMap::new();
+    for valve in read_valves(&mut reader).into_iter() {
+        let valve_num = valve_map.len();
+        valve_map.insert(valve.name, (valve_num, valve));
+    }
+    let mut flow_rates = vec![0; valve_map.len()];
+    let mut dist_matrix = VecGrid::full(valve_map.len(), valve_map.len(), 0);
+    for (name, &(num, ref valve)) in valve_map.iter() {
+        flow_rates[num] = valve.flow_rate;
+        fill_valve_distances(&mut dist_matrix, &valve_map, name);
+    }
+
+    let num_valves = valve_map.len();
+    let &(start_valve_num, _) = &valve_map[b"AA".as_ref()];
+    let mut state = State {
+        start_pos: start_valve_num,
+        current_pos: start_valve_num,
+
+        num_actors: 2,
+        current_actor: 0,
+
+        time_available: 26,
+        current_time: 0,
+
+        step_log: Vec::new(),
+
+        total_released: 0,
+        valve_states: vec![false; valve_map.len()],
+
+        dist_matrix: &dist_matrix,
+        flow_rates: &flow_rates,
+    };
+
+    state.descend();
+    let mut best = state.total_released;
+
+    // descend
+    while state.next_state() {
+        best = max(best, state.total_released);
+    }
+    println!("{}", best);
+}
+
+#[derive(Debug, Copy, Clone)]
+enum Action {
+    OpenValve(usize),
+    NextActor,
+}
+
+#[derive(Debug)]
+struct Step {
+    action: Action,
+    prev_pos: usize,
+    prev_time: usize,
 }
 
 struct State<'a> {
-    pos: usize,
-    minutes_remaining: usize,
+    /// valve number where new actors start
+    start_pos: usize,
+
+    step_log: Vec<Step>,
+
+    time_available: usize,
+
+    num_actors: usize,
+    current_actor: usize,
+    current_pos: usize,
+    current_time: usize,
+
     total_released: usize,
-    release_rate: usize,
+
     valve_states: Vec<bool>,
 
     dist_matrix: &'a VecGrid<usize>,
     flow_rates: &'a [usize],
-    // in which order the valves were opened
-    history: Vec<usize>,
 }
 
 impl<'a> State<'a> {
     fn valve_available(&self, valve_num: usize) -> bool {
         !self.valve_states[valve_num]
             && self.flow_rates[valve_num] > 0
-            && self.dist_matrix[(self.pos, valve_num)] <= self.minutes_remaining
+            && self.current_time + self.dist_matrix[(self.current_pos, valve_num)]
+                <= self.time_available
+    }
+
+    fn apply_action(&mut self, action: Action) {
+        let prev_pos = self.current_pos;
+        let prev_time = self.current_time;
+        match action {
+            Action::OpenValve(valve_num) => self.open_valve(valve_num),
+            Action::NextActor => self.next_actor(),
+        }
+        self.step_log.push(Step {
+            action,
+            prev_pos,
+            prev_time,
+        });
     }
 
     fn open_valve(&mut self, valve_num: usize) {
         debug_assert!(!self.valve_states[valve_num]);
-        self.history.push(self.pos);
-        let minutes_elapsed = self.dist_matrix[(self.pos, valve_num)];
-        self.minutes_remaining -= minutes_elapsed;
-        self.total_released += minutes_elapsed * self.release_rate;
-        self.pos = valve_num;
+        self.current_time += self.dist_matrix[(self.current_pos, valve_num)];
+        self.total_released +=
+            (self.time_available - self.current_time) * self.flow_rates[valve_num];
         self.valve_states[valve_num] = true;
-        self.release_rate += self.flow_rates[valve_num];
+        self.current_pos = valve_num;
     }
 
-    fn backtrack(&mut self) {
-        // self.pos is the valve that was opened last
-        let prev_pos = self.history.pop().unwrap();
-        self.release_rate -= self.flow_rates[self.pos];
-        self.valve_states[self.pos] = false;
-        let minutes_elapsed = self.dist_matrix[(prev_pos, self.pos)];
-        self.total_released -= minutes_elapsed * self.release_rate;
-        self.minutes_remaining += minutes_elapsed;
-        self.pos = prev_pos;
+    fn next_actor(&mut self) {
+        self.current_actor += 1;
+        debug_assert!(self.current_actor < self.num_actors);
+        self.current_pos = self.start_pos;
+        self.current_time = 0;
     }
 
-    fn projected_release(&self) -> usize {
-        self.total_released + self.minutes_remaining * self.release_rate
+    fn undo_step(&mut self, step: &Step) {
+        match step.action {
+            Action::OpenValve(valve_num) => {
+                self.total_released -=
+                    (self.time_available - self.current_time) * self.flow_rates[valve_num];
+                self.valve_states[valve_num] = false;
+            }
+            Action::NextActor => {
+                self.current_actor -= 1;
+            }
+        }
+        self.current_time = step.prev_time;
+        self.current_pos = step.prev_pos;
     }
 
     fn num_valves(&self) -> usize {
@@ -107,21 +189,41 @@ impl<'a> State<'a> {
     }
 
     fn descend(&mut self) {
-        while let Some(v) = (0..self.num_valves()).find(|&v| self.valve_available(v)) {
-            self.open_valve(v);
+        while let Some(action) = self.first_available_action(0) {
+            self.apply_action(action);
         }
     }
 
+    fn first_available_action(&self, first_allowed_valve: usize) -> Option<Action> {
+        let next_available_valve =
+            (first_allowed_valve..self.num_valves()).find(|&v| self.valve_available(v));
+        if let Some(valve_num) = next_available_valve {
+            Some(Action::OpenValve(valve_num))
+        } else if self.current_actor + 1 < self.num_actors {
+            Some(Action::NextActor)
+        } else {
+            None
+        }
+    }
+
+    fn next_action(&self, action: Action) -> Option<Action> {
+        match action {
+            Action::OpenValve(prev_valve) => self.first_available_action(prev_valve + 1),
+            Action::NextActor => None,
+        }
+    }
+
+    // returns: success state
     fn next_state(&mut self) -> bool {
-        while !self.history.is_empty() {
-            let prev = self.pos;
-            self.backtrack();
-            if let Some(v) = (prev + 1..self.num_valves()).find(|&v| self.valve_available(v)) {
-                self.open_valve(v);
+        while let Some(step) = self.step_log.pop() {
+            self.undo_step(&step);
+            if let Some(next_action) = self.next_action(step.action) {
+                self.apply_action(next_action);
                 self.descend();
                 return true;
             }
         }
+        // all possible states exhausted
         false
     }
 }
@@ -145,10 +247,6 @@ fn fill_valve_distances(dist_matrix: &mut VecGrid<usize>, valve_map: &ValveMap, 
             _ => continue,
         };
     }
-}
-
-pub fn part2(input_path: &str) {
-    todo!()
 }
 
 struct Valve<'a> {
