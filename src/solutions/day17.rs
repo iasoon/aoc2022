@@ -1,3 +1,5 @@
+use std::{collections::HashMap, usize};
+
 struct Shape {
     height: usize,
     width: usize,
@@ -31,6 +33,14 @@ static SHAPES: &[Shape] = &[
         points: &[(0, 0), (0, 1), (1, 0), (1, 1)],
     },
 ];
+
+pub fn part1(input_path: &str) {
+    solve(input_path, 2022);
+}
+
+pub fn part2(input_path: &str) {
+    solve(input_path, 1000000000000);
+}
 
 struct RockFormation {
     shape: &'static Shape,
@@ -73,17 +83,28 @@ impl RockFormation {
     }
 }
 
-pub fn part1(input_path: &str) {
+fn solve(input_path: &str, n_rocks: usize) {
     let bytes = std::fs::read(input_path).unwrap();
     let directions = if bytes.last() == Some(&b'\n') {
         &bytes[..bytes.len() - 1]
     } else {
         &bytes
     };
+    let answer = calc_stack_height(directions, n_rocks);
+    println!("{}", answer);
+}
+
+fn calc_stack_height(directions: &[u8], n_rocks: usize) -> usize {
     let mut direction_counter = 0;
 
+    let mut height_per_col = vec![0; 7];
+
     let mut row_stack: Vec<Vec<bool>> = Vec::new();
-    for rock_num in 0..2022 {
+    let mut height_log = Vec::new();
+    let mut pattern_index = HashMap::new();
+
+    let mut rock_num = 0;
+    while rock_num < n_rocks {
         let mut rock = RockFormation {
             shape: &SHAPES[rock_num % SHAPES.len()],
             x_offset: 2,
@@ -118,12 +139,49 @@ pub fn part1(input_path: &str) {
 
         for (x, y) in rock.points() {
             row_stack[y][x] = true;
+            if y > height_per_col[x] {
+                height_per_col[x] = y;
+            }
         }
+
+        let baseline = height_per_col.iter().min().unwrap();
+        let rel_baseline: Vec<usize> = height_per_col.iter().map(|h| h - baseline).collect();
+        let key = (
+            rel_baseline,
+            rock_num % SHAPES.len(),
+            direction_counter % directions.len(),
+        );
+
+        if let Some(&cycle_start) = pattern_index.get(&key) {
+            // Found a cycle!
+            // We can now skip along the cycle until we approach the desired
+            // end state.
+
+            let current_height = row_stack.len();
+
+            let start_height = height_log[cycle_start];
+            let cycle_len = rock_num - cycle_start;
+            let cycle_height_diff = current_height - start_height;
+
+            // -1 because rock_num starts at 0
+            let rocks_remaining = n_rocks - rock_num - 1;
+            let full_cycles_remaining = rocks_remaining / cycle_len;
+
+            let remaining_cycles_height = cycle_height_diff * full_cycles_remaining;
+
+            // final position modulo cycle length, so that it ends up at a position
+            // that we already know the height for
+            let end_state = cycle_start + rocks_remaining % cycle_len;
+            let remainder_height = height_log[end_state] - start_height;
+
+            return current_height + remaining_cycles_height + remainder_height;
+        }
+
+        pattern_index.insert(key, rock_num);
+        height_log.push(row_stack.len());
+        rock_num += 1;
     }
 
-    println!("{}", row_stack.len());
-}
-
-pub fn part2(input_path: &str) {
-    todo!()
+    // we did not find a cycle
+    row_stack.len()
 }
