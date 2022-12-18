@@ -24,6 +24,8 @@ fn main() {
         (7, 2) => solutions::day07::part2(input_path),
         (8, 1) => solutions::day08::part1(input_path),
         (8, 2) => solutions::day08::part2(input_path),
+        (9, 1) => solutions::day09::part1(input_path),
+        (9, 2) => solutions::day09::part2(input_path),
         (11, 1) => solutions::day11::part1(input_path),
         (11, 2) => solutions::day11::part2(input_path),
         (12, 1) => solutions::day12::part1(input_path),

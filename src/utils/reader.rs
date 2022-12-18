@@ -94,4 +94,10 @@ impl<'a> Reader<'a> {
         self.skip_while(predicate);
         &self.bytes[start..self.pos]
     }
+
+    pub fn take_byte(&mut self) -> u8 {
+        let val = self.peek();
+        self.skip(1);
+        val
+    }
 }
