@@ -1,4 +1,8 @@
-use std::{cmp::max, collections::HashSet, ops::Range};
+use std::{
+    cmp::{max, min},
+    collections::HashSet,
+    ops::Range,
+};
 
 use crate::utils::Reader;
 
@@ -107,6 +111,20 @@ impl Blueprint {
                     }
                     let mut robots = state.robots;
                     robots[resource_num] += 1;
+                    let time_remaining = n_minutes - minutes_elapsed;
+                    // best possible outcome, using summation formula
+                    let best_possible = resources[GEODE] + time_remaining.pow(2) + robots[GEODE];
+                    if best_possible <= best {
+                        continue;
+                    }
+
+                    // cap resources; this helps with caching states
+                    for i in RESOURCES {
+                        // this is the maximum we can still spend
+                        let cap = max_useful_robots[i]
+                            + time_remaining * (max_useful_robots[i] - robots[i]);
+                        resources[i] = min(resources[i], cap);
+                    }
                     let next_state = State {
                         minutes_elapsed,
                         resources,
