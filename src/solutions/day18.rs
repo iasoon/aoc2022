@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::utils::Reader;
+use crate::utils::{add_vecs, Reader};
 
 static ADJACENT_DELTAS: &[[isize; 3]] = &[
     [1, 0, 0],
@@ -57,14 +57,6 @@ pub fn part2(input_path: &str) {
     }
 
     println!("{}", exposed_side_count);
-}
-
-fn add_vecs<const N: usize>(fst: &[isize; N], snd: &[isize; N]) -> [isize; N] {
-    let mut res = *fst;
-    for i in 0..N {
-        res[i] += snd[i];
-    }
-    res
 }
 
 fn bounding_box<'a, const N: usize, I>(mut iter: I) -> Option<([isize; N], [isize; N])>
