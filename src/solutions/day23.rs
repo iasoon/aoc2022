@@ -3,9 +3,9 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::utils::add_vecs;
+use crate::utils::{add_vecs, FnvHash, FnvHashMap, FnvHashSet};
 
-pub fn solve(input_path: &str, turn_limit: Option<usize>) -> (usize, HashSet<[isize; 2]>) {
+pub fn solve(input_path: &str, turn_limit: Option<usize>) -> (usize, FnvHashSet<[isize; 2]>) {
     let mut elves = parse_elves(input_path);
 
     let mut directions: [[isize; 2]; 4] = [
@@ -14,7 +14,7 @@ pub fn solve(input_path: &str, turn_limit: Option<usize>) -> (usize, HashSet<[is
         [-1, 0], // West
         [1, 0],  // East
     ];
-    let mut times_proposed: HashMap<[isize; 2], usize> = HashMap::new();
+    let mut times_proposed: FnvHashMap<[isize; 2], usize> = HashMap::with_hasher(FnvHash);
     let mut proposed_moves = Vec::new();
 
     let mut turn_counter = 0;
@@ -55,7 +55,6 @@ pub fn solve(input_path: &str, turn_limit: Option<usize>) -> (usize, HashSet<[is
             }
         }
 
-        // println!("n_moves: {}", proposed_moves.len());
         directions.rotate_left(1);
 
         turn_counter += 1;
@@ -80,9 +79,9 @@ pub fn part2(input_path: &str) {
     println!("{}", n_turns);
 }
 
-fn parse_elves(input_path: &str) -> HashSet<[isize; 2]> {
+fn parse_elves(input_path: &str) -> FnvHashSet<[isize; 2]> {
     let bytes = std::fs::read(input_path).unwrap();
-    let mut elves = HashSet::new();
+    let mut elves = HashSet::with_hasher(FnvHash);
 
     let mut row: isize = 0;
     let mut col: isize = 0;
