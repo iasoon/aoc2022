@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use crate::utils::{FnvHash, Reader, VecGrid};
+use crate::utils::{Reader, VecGrid};
 
 pub fn part1(input_path: &str) {
     solve(input_path, false);
@@ -44,20 +42,24 @@ fn solve(input_path: &str, part2: bool) {
 
     debug_assert!(times_blocked[start] == 0);
     debug_assert!(times_blocked[exit] == 0);
-    let mut positions = HashSet::with_hasher(FnvHash);
-    positions.insert(start);
+    let mut pos_mask = VecGrid::full(width, height, false);
+    let mut pos_vec = Vec::with_capacity(width * height);
+    pos_mask[start] = true;
+    pos_vec.push(start);
 
     let mut turn_num = 0;
     let mut target_num = 0;
     loop {
-        if positions.contains(&targets[target_num]) {
+        if pos_mask[targets[target_num]] {
             if target_num == targets.len() - 1 {
                 println!("{}", turn_num);
                 return;
             } else {
                 // move to next target
-                positions.clear();
-                positions.insert(targets[target_num]);
+                pos_mask = VecGrid::full(width, height, false);
+                pos_vec = Vec::with_capacity(width * height);
+                pos_mask[targets[target_num]] = true;
+                pos_vec.push(targets[target_num]);
                 target_num += 1;
             }
         }
@@ -88,11 +90,20 @@ fn solve(input_path: &str, part2: bool) {
             times_blocked[blizzard.pos] += 1;
         }
 
-        // create new position set
-        let mut next_positions = HashSet::with_hasher(FnvHash);
-        for (x, y) in positions.into_iter() {
+        let mut next_pos_vec = Vec::with_capacity(width * height);
+        let mut i = 0;
+        let mut barrier = pos_vec.len();
+        for pos in pos_vec.into_iter() {
+            let (x, y) = pos;
+
+            // should be set to false when pos is blocked
+            if times_blocked[pos] == 0 {
+                next_pos_vec.push(pos);
+            } else {
+                pos_mask[pos] = false;
+            }
+
             let next_xy = [
-                Some((x, y)),
                 Some((x + 1, y)),
                 Some((x - 1, y)),
                 (y > 0).then(|| (x, y - 1)),
@@ -102,12 +113,13 @@ fn solve(input_path: &str, part2: bool) {
             .flatten();
 
             for pos in next_xy {
-                if times_blocked[pos] == 0 {
-                    next_positions.insert(pos);
+                if times_blocked[pos] == 0 && !pos_mask[pos] {
+                    pos_mask[pos] = true;
+                    next_pos_vec.push(pos);
                 }
             }
         }
-        positions = next_positions;
+        pos_vec = next_pos_vec;
         turn_num += 1;
     }
 }
